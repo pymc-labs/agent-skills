@@ -10,7 +10,7 @@ Skills follow an [open standard](https://agentskills.io/specification) and work 
 
 | Platform | Documentation |
 |----------|---------------|
-| [Claude Code](https://claude.ai/code) | [Skills docs](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/skills) |
+| [Claude Code](https://claude.ai/code) | [Skills docs](https://docs.anthropic.com/en/docs/claude-code/skills) |
 | [OpenCode](https://opencode.ai) | [Skills docs](https://opencode.ai/docs/skills/) |
 | [Gemini CLI](https://geminicli.com) | [Skills docs](https://geminicli.com/docs/cli/skills/) |
 | [Cursor](https://cursor.com) | [Skills docs](https://cursor.com/docs/context/skills) |
@@ -20,6 +20,7 @@ Skills follow an [open standard](https://agentskills.io/specification) and work 
 
 | Skill | Description |
 |-------|-------------|
+| [marimo-notebooks](skills/marimo-notebooks/) | Reactive Python notebooks stored as pure `.py` files. Covers marimo CLI, UI components, layout functions, SQL integration, caching, state management, and wigglystuff widgets. |
 | [pymc-modeling](skills/pymc-modeling/) | Bayesian statistical modeling with PyMC v5+. Covers model specification, MCMC inference, ArviZ diagnostics, hierarchical models, GLMs, GPs, BART, time series, and more. |
 
 ## Installation
@@ -28,7 +29,7 @@ Skills follow an [open standard](https://agentskills.io/specification) and work 
 
 | Platform | Install Location | Auto-Discovered |
 |----------|-----------------|-----------------|
-| Claude Code | `~/.claude/skills/` | No (manual registration required) |
+| Claude Code | `~/.claude/skills/` | Yes |
 | OpenCode | `~/.config/opencode/skills/` | Yes |
 | Gemini CLI | `~/.gemini/skills/` | Yes |
 | Cursor | `~/.cursor/skills/` | Yes |
@@ -58,24 +59,7 @@ cd agent-skills
 ./install.sh claude
 ```
 
-**Additional step required:** Claude Code requires manual registration. After running the install script, add the printed XML to your `~/.claude/CLAUDE.md` file:
-
-```xml
-<available_skills>
-  <skill>
-    <name>pymc-modeling</name>
-    <description>Bayesian statistical modeling with PyMC v5+...</description>
-  </skill>
-</available_skills>
-```
-
-Also add a reference in your instructions:
-
-```markdown
-## Domain-Specific Skills
-
-- **PyMC/Bayesian modeling**: Use the `pymc-modeling` skill
-```
+Skills are auto-discovered from `~/.claude/skills/`. Claude loads them automatically when relevant to your task, or you can invoke directly with `/skill-name`.
 
 #### OpenCode
 
@@ -108,6 +92,8 @@ gemini skills disable pymc-modeling
 ```
 
 Skills are auto-discovered from `~/.cursor/skills/`. View discovered skills in **Cursor Settings > Rules > Agent Decides**.
+
+**Note:** Agent Skills in Cursor require the nightly release channel. Switch via **Cursor Settings > Beta > Update Channel > Nightly**.
 
 #### VS Code Copilot
 
@@ -145,7 +131,7 @@ If you prefer not to use the install script:
    | Cursor | `~/.cursor/skills/` |
    | VS Code Copilot | `~/.copilot/skills/` |
 
-2. For Claude Code only: register the skill in `~/.claude/CLAUDE.md`
+2. Skills are auto-discovered on all platforms. No additional registration needed.
 
 ### Updating Skills
 
@@ -167,8 +153,6 @@ rm -rf ~/.cursor/skills/pymc-modeling
 rm -rf ~/.copilot/skills/pymc-modeling
 ```
 
-For Claude Code, also remove the skill from `~/.claude/CLAUDE.md`.
-
 ### Troubleshooting
 
 **Skill not loading:**
@@ -176,7 +160,7 @@ For Claude Code, also remove the skill from `~/.claude/CLAUDE.md`.
 1. Verify the skill directory exists in the correct location
 2. Check `SKILL.md` has valid YAML frontmatter with `name` and `description`
 3. Platform-specific checks:
-   - Claude Code: Verify registration in `~/.claude/CLAUDE.md`
+   - Cursor: Requires nightly release channel
    - Gemini CLI: Check `experimental.skills` is enabled
    - VS Code: Check `chat.useAgentSkills` is enabled
 
