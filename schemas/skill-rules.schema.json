@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentskills.io/schemas/skill-rules.schema.json",
+  "title": "Skill Activation Rules",
+  "description": "Schema for defining automatic skill activation triggers",
+  "type": "object",
+  "required": ["name", "version", "activation"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema"
+    },
+    "name": {
+      "type": "string",
+      "description": "Skill identifier (must match directory name)"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the rules"
+    },
+    "activation": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["auto", "manual", "hybrid"],
+          "description": "auto: activate on any trigger match; manual: only explicit invocation; hybrid: suggest on match"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "medium",
+          "description": "Determines activation order when multiple skills match"
+        }
+      }
+    },
+    "promptTriggers": {
+      "type": "object",
+      "description": "Triggers based on user prompt content",
+      "properties": {
+        "keywords": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Case-insensitive keywords that trigger activation"
+        },
+        "intentPatterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Regex patterns matching user intent (case-insensitive)"
+        }
+      }
+    },
+    "fileTriggers": {
+      "type": "object",
+      "description": "Triggers based on files being edited or present",
+      "properties": {
+        "pathPatterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns for file paths"
+        },
+        "contentPatterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Regex patterns to match in file content"
+        }
+      }
+    },
+    "contextTriggers": {
+      "type": "object",
+      "description": "Triggers based on project context",
+      "properties": {
+        "projectIndicators": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Package names in requirements.txt, pyproject.toml, etc."
+        },
+        "fileExtensions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "File extensions this skill applies to"
+        }
+      }
+    }
+  }
+}
