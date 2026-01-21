@@ -24,6 +24,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_DIR="$SCRIPT_DIR/skills"
+HOOKS_DIR="$SCRIPT_DIR/hooks"
+SCHEMAS_DIR="$SCRIPT_DIR/schemas"
 
 # Colors for output
 RED='\033[0;31m'
@@ -106,6 +108,47 @@ install_skill() {
     success "Installed $skill -> $skill_dst"
 }
 
+# Install hooks to target directory
+install_hooks() {
+    local target_dir="$1"
+    local hooks_dst="$target_dir/../hooks"
+    
+    if [[ ! -d "$HOOKS_DIR" ]]; then
+        debug "No hooks directory found"
+        return 0
+    fi
+    
+    mkdir -p "$hooks_dst"
+    cp -r "$HOOKS_DIR"/* "$hooks_dst/" 2>/dev/null || true
+    chmod +x "$hooks_dst"/*.sh 2>/dev/null || true
+    success "Installed hooks -> $hooks_dst"
+}
+
+# Aggregate all rules.json files into a single file
+aggregate_rules() {
+    local target_dir="$1"
+    local skills=("${@:2}")
+    local rules_file="$target_dir/skill-rules.json"
+    
+    # Start JSON array
+    echo "[" > "$rules_file"
+    
+    local first=true
+    for skill in "${skills[@]}"; do
+        local skill_rules="$target_dir/$skill/rules.json"
+        if [[ -f "$skill_rules" ]]; then
+            if ! $first; then
+                echo "," >> "$rules_file"
+            fi
+            cat "$skill_rules" >> "$rules_file"
+            first=false
+        fi
+    done
+    
+    echo "]" >> "$rules_file"
+    success "Aggregated rules -> $rules_file"
+}
+
 # List available skills
 list_skills() {
     find "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d -exec basename {} \; 2>/dev/null | sort
@@ -165,6 +208,17 @@ print_claude_instructions() {
     done
     
     echo -e "${BOLD}---${NC}"
+    echo ""
+    echo -e "${BOLD}Hook-based activation:${NC}"
+    echo ""
+    echo "Skills now include rules.json files for automatic activation."
+    echo "The skill-eval.sh hook can be used to evaluate prompts:"
+    echo ""
+    echo "  echo 'Create a Bayesian model' | ~/.claude/hooks/skill-eval.sh"
+    echo ""
+    echo "Or check a file:"
+    echo ""
+    echo "  ~/.claude/hooks/skill-eval.sh --file model.py"
     echo ""
 }
 
@@ -244,6 +298,13 @@ main() {
         for skill in "${skills[@]}"; do
             install_skill "$skill" "$target_dir"
         done
+        
+        # Install hooks
+        install_hooks "$target_dir"
+        
+        # Aggregate rules
+        aggregate_rules "$target_dir" "${skills[@]}"
+        
         echo ""
     done
 
