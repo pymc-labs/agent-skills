@@ -370,17 +370,29 @@ cov = pm.gp.cov.Matern52(input_dim=D, ls=ell)
 
 The length scale controls correlation distance. Smaller = more wiggly.
 
+**Recommended: InverseGamma prior** (Betancourt methodology)
+
+Standard priors like HalfNormal or Exponential put significant mass near zero, which causes the GP to become overly "wiggly" and leads to poor convergence. The InverseGamma prior concentrates mass between the shortest and longest pairwise distances in the data, ensuring the GP only learns features that are resolvable by the provided data points.
+
 ```python
 # InverseGamma: prevents lengthscale going to 0 or infinity (recommended)
 ell = pm.InverseGamma("ell", alpha=5, beta=5)
 
-# Calibrate to data scale
-data_range = X.max() - X.min()
-ell = pm.InverseGamma("ell", alpha=5, beta=data_range / 2)
+# Calibrate to data scale: concentrate prior between data point spacing
+min_dist = 0.1  # approximate minimum pairwise distance
+max_dist = X.max() - X.min()  # data range
+
+# Choose alpha and beta to put mass in [min_dist, max_dist]
+# Rule of thumb: beta ~ desired_mode * (alpha - 1)
+ell = pm.InverseGamma("ell", alpha=5, beta=max_dist / 2)
 
 # LogNormal: for order-of-magnitude uncertainty
 ell = pm.LogNormal("ell", mu=np.log(expected_ell), sigma=1)
 ```
+
+**Why InverseGamma works**: The prior prevents the sampler from drifting into regions where:
+- Lengthscale is so small the GP becomes white noise (overfitting)
+- Lengthscale is so large the GP becomes a flat line (underfitting)
 
 ### Amplitude (η / marginal standard deviation)
 

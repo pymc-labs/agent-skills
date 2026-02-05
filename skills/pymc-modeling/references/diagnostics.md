@@ -1,13 +1,29 @@
 # Diagnostics and Troubleshooting
 
-Quick reference for post-sampling diagnostics and common issues. For comprehensive ArviZ usage, see [arviz.md](arviz.md).
+Quick reference for post-sampling diagnostics and common issues. For comprehensive ArviZ usage, see [arviz.md](arviz.md). For model-building problems (shape errors, initialization failures), see [troubleshooting.md](troubleshooting.md).
 
 ## Table of Contents
+- [Quick Symptom Reference](#quick-symptom-reference)
 - [Quick Diagnostic Checklist](#quick-diagnostic-checklist)
 - [Convergence Thresholds](#convergence-thresholds)
 - [Divergence Troubleshooting](#divergence-troubleshooting)
 - [Common Problems and Fixes](#common-problems-and-fixes)
 - [Model Comparison Quick Reference](#model-comparison-quick-reference)
+
+---
+
+## Quick Symptom Reference
+
+| Symptom | Primary Cause | Solution |
+|---------|---------------|----------|
+| `ValueError: Shape mismatch` | Parameter vs observation dimensions | Index into group params: `alpha[group_idx]` |
+| `Initial evaluation failed: -inf` | Data outside distribution support | Check bounds; reduce jitter; use `init="adapt_diag"` |
+| `Mass matrix contains zeros` | Unscaled features or flat priors | Standardize predictors; use weakly informative priors |
+| High divergence count | Funnel geometry or hard boundaries | Non-centered parameterization; increase `target_accept` |
+| Poor GP convergence | Inappropriate lengthscale prior | InverseGamma prior based on data scale |
+| `TypeError` in model logic | Python `if/else` inside model | Use `pt.switch()` or `pytensor.ifelse` |
+| Slow sampling with discrete vars | NUTS incompatible with discrete | Marginalize discrete variables |
+| Inconsistent predictions | Different group factorization | Use `pd.Categorical` or `sort=True` in factorize |
 
 ---
 
@@ -299,6 +315,7 @@ waic = az.waic(idata)
 
 ## See Also
 
+- [troubleshooting.md](troubleshooting.md) - Comprehensive problem-solution guide
 - [arviz.md](arviz.md) - Comprehensive ArviZ usage guide
 - [gotchas.md](gotchas.md) - Common modeling pitfalls
 - [inference.md](inference.md) - Sampler selection and configuration

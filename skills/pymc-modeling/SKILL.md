@@ -239,10 +239,16 @@ model.point_logps()
 
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
+| `ValueError: Shape mismatch` | Parameter vs observation dimensions | Use index vectors: `alpha[group_idx]` |
+| `Initial evaluation failed` | Data outside distribution support | Check bounds; use `init="adapt_diag"` |
+| `Mass matrix contains zeros` | Unscaled predictors or flat priors | Standardize features; use weakly informative priors |
+| High divergence count | Funnel geometry | Non-centered parameterization |
 | `NaN` in log-probability | Invalid parameter combinations | Check parameter constraints, add bounds |
-| `-inf` log-probability | Parameter outside distribution support | Verify observed data matches likelihood support |
-| Very large/small logp | Scaling issues | Standardize data, use appropriate priors |
-| Slow compilation | Large model graph | Reduce Deterministics, use vectorized ops |
+| `-inf` log-probability | Observations outside likelihood support | Verify data matches distribution domain |
+| Slow discrete sampling | NUTS incompatible with discrete | Marginalize discrete variables |
+| Poor out-of-sample prediction | Static data arrays | Use `pm.Data` containers with `mutable=True` |
+
+See [references/troubleshooting.md](references/troubleshooting.md) for comprehensive problem-solution guide.
 
 ### Debugging Divergences
 
@@ -537,6 +543,15 @@ See [references/gotchas.md](references/gotchas.md) for:
 - Priors on scale parameters
 - Label switching in mixtures
 - Performance issues (GPs, large Deterministics)
+- Python conditionals and hard clipping
+- Redundant intercepts in hierarchical models
+
+See [references/troubleshooting.md](references/troubleshooting.md) for comprehensive problem-solution guide covering:
+- Shape and dimension errors
+- Initialization failures
+- Mass matrix and numerical issues
+- Discrete variable challenges
+- Data container and prediction issues
 
 ## Causal Inference Operations
 
@@ -579,17 +594,25 @@ with pm.do(causal_model, {"x": 2}) as m1:
 
 ## pymc-extras
 
-For specialized models:
+For specialized models and inference:
 
 ```python
 import pymc_extras as pmx
 
-# Marginalizing discrete parameters
-with pm.Model() as marginal:
-    pmx.MarginalMixture(...)
+# Marginalize discrete parameters from a model
+model = pmx.marginalize(model, ["discrete_var"])
 
-# R2D2 prior for regression
-pmx.R2D2M2CP(...)
+# R2D2 prior for regression (requires output_sigma and input_sigma)
+residual_sigma, beta = pmx.R2D2M2CP(
+    "r2d2",
+    output_sigma=y.std(),
+    input_sigma=X.std(axis=0),
+    dims="features",
+    r2=0.5,
+)
+
+# Laplace approximation for fast inference
+idata = pmx.fit_laplace(model)
 ```
 
 ## Custom Distributions and Model Components

@@ -1,5 +1,83 @@
 # Common Pitfalls
 
+## Structural Issues
+
+### Using Python Conditionals Inside Models
+
+Python `if/else` statements are evaluated at model construction time, not during sampling.
+
+```python
+# BAD: Python conditional evaluated once at construction
+if x > threshold:  # This is NOT evaluated per sample!
+    mu = a
+else:
+    mu = b
+
+# GOOD: Use PyTensor symbolic operations
+import pytensor.tensor as pt
+
+mu = pt.switch(x > threshold, a, b)
+
+# For complex conditionals
+from pytensor.ifelse import ifelse
+result = ifelse(condition, true_branch, false_branch)
+```
+
+For iterative logic depending on random variables, use `pytensor.scan`.
+
+### Hard Clipping Creates Non-Differentiable Regions
+
+Clipping functions create flat gradient regions where NUTS cannot navigate.
+
+```python
+# BAD: Hard clipping causes divergences
+mu = pm.math.clip(linear_pred, 0, np.inf)
+# Gradient is zero in clipped regions
+
+# GOOD: Soft alternatives
+from pytensor.tensor.nnet import softplus
+mu = softplus(linear_pred)  # smooth, positive
+
+# Or use naturally constrained distributions
+sigma = pm.HalfNormal("sigma", 1)  # always positive
+rate = pm.LogNormal("rate", 0, 1)  # always positive
+```
+
+### Inconsistent Group Index Factorization
+
+Separate factorization of train/test sets creates inconsistent mappings.
+
+```python
+# BAD: Independent factorization
+train_idx, _ = pd.factorize(train_df["group"])
+test_idx, _ = pd.factorize(test_df["group"])
+# "group 0" may differ between train and test!
+
+# GOOD: Use categorical types
+df["group"] = pd.Categorical(df["group"])
+train_idx = train_df["group"].cat.codes
+test_idx = test_df["group"].cat.codes
+
+# Or factorize once on all data
+all_idx, labels = pd.factorize(full_df["group"], sort=True)
+train_idx = all_idx[train_mask]
+test_idx = all_idx[~train_mask]
+```
+
+### Dimension Mismatch: Parameters vs Observations
+
+In hierarchical models, parameters have group-level dimensions while likelihoods need observation-level dimensions.
+
+```python
+# BAD: Alpha has K groups, y_obs has N observations
+alpha = pm.Normal("alpha", 0, 1, dims="group")
+y = pm.Normal("y", mu=alpha, sigma=1, observed=y_obs)  # Shape error!
+
+# GOOD: Index into group parameters
+group_idx = df["group"].cat.codes
+y = pm.Normal("y", mu=alpha[group_idx], sigma=1, observed=y_obs)
+```
+
 ## Statistical Issues
 
 ### Centered Parameterization with Weak Data
@@ -37,6 +115,45 @@ mu_raw = pm.Normal("mu_raw", 0, 10, dims="component")
 mu = pm.Deterministic("mu", pt.sort(mu_raw), dims="component")
 ```
 
+### Redundant Intercepts in Hierarchical Models
+
+Defining individual intercepts for every predictor creates non-identifiability.
+
+```python
+# BAD: Separate intercept per predictor (non-identifiable)
+intercept_age = pm.Normal("int_age", 0, 1)
+intercept_income = pm.Normal("int_income", 0, 1)
+# These compete with each other and any group intercepts
+
+# GOOD: Single intercept structure
+group_intercept = pm.Normal("group_int", mu_global, sigma_group, dims="group")
+slope_age = pm.Normal("slope_age", 0, 1)
+slope_income = pm.Normal("slope_income", 0, 1)
+
+mu = group_intercept[group_idx] + slope_age * age + slope_income * income
+```
+
+| Error | Impact | Solution |
+|-------|--------|----------|
+| Intercept per predictor | Non-identifiability | Single intercept per group |
+| No global intercept | Poor pooling | Include global hyperpriors |
+| Unshared variances | Increased complexity | Use LKJ priors for correlations |
+
+### Horseshoe Prior Geometry
+
+The Horseshoe prior has a massive spike at zero and heavy tails, creating a "double-funnel" geometry that is extremely difficult for NUTS.
+
+```python
+# Horseshoe often requires very high target_accept
+idata = pm.sample(target_accept=0.99)
+
+# Consider Regularized Horseshoe for better geometry (manual implementation)
+# See priors.md for full regularized horseshoe code
+
+# Or simpler Laplace prior if sufficient
+beta = pm.Laplace("beta", mu=0, b=1, dims="features")
+```
+
 ### Missing Prior Predictive Checks
 
 Always check prior implications before fitting:
@@ -46,6 +163,20 @@ with model:
     prior_pred = pm.sample_prior_predictive()
 
 az.plot_ppc(prior_pred, group="prior")
+```
+
+### Over-Tight Priors with Link Functions
+
+Priors that are too narrow can cause link functions to saturate on new data.
+
+```python
+# If slope prior is very tight and test X values are larger than training:
+# sigmoid(X_test @ beta) can be exactly 0 or 1
+# This causes log(0) = -inf in the log-likelihood
+
+# Solution: Prior predictive checks across expected predictor range
+X_range = np.linspace(expected_min, expected_max, 100)
+# Verify prior predictions remain valid across this range
 ```
 
 ## Performance Issues
@@ -271,8 +402,10 @@ X = X[:, [i for i, name in enumerate(feature_names) if name != "birth_year"]]
 beta = pm.Normal("beta", mu=0, sigma=0.5, dims="features")
 
 # Horseshoe prior (sparse, some coefficients near zero)
-import pymc_extras as pmx
-# pmx.Horseshoe(...)
+# Must be implemented manually - see priors.md for full code
+tau = pm.HalfCauchy("tau", beta=1)
+lam = pm.HalfCauchy("lam", beta=1, dims="features")
+beta = pm.Normal("beta", mu=0, sigma=tau * lam, dims="features")
 ```
 
 **QR parameterization** (orthogonalizes predictors):
@@ -294,3 +427,12 @@ with pm.Model() as model:
 ```
 
 **Interpret carefully**: If prediction is the goal, multicollinearity may not matter—just don't interpret individual coefficients.
+
+---
+
+## See Also
+
+- [troubleshooting.md](troubleshooting.md) - Comprehensive problem-solution guide
+- [diagnostics.md](diagnostics.md) - Post-sampling diagnostic workflow
+- [priors.md](priors.md) - Prior selection guidance
+- [inference.md](inference.md) - Sampler selection and configuration

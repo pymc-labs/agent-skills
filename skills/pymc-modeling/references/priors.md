@@ -170,45 +170,56 @@ beta = pm.Laplace("beta", mu=0, b=1, dims="features")
 Global-local shrinkage: global hyperparameter shrinks all coefficients while local half-Cauchy allows large signals to escape.
 
 ```python
-# Manual horseshoe
+# Manual horseshoe (no built-in pmx.Horseshoe exists)
 tau = pm.HalfCauchy("tau", beta=1)  # global shrinkage
 lam = pm.HalfCauchy("lam", beta=1, dims="features")  # local shrinkage
 beta = pm.Normal("beta", mu=0, sigma=tau * lam, dims="features")
-
-# Using pymc-extras (recommended)
-import pymc_extras as pmx
-beta = pmx.Horseshoe("beta", dims="features")
 ```
+
+**Sampling challenges**: The Horseshoe creates a "double-funnel" geometry (massive spike at zero + heavy tails) that is extremely difficult for NUTS. Divergences are common unless using very high `target_accept` (0.99+). Consider:
+
+1. Using the Regularized Horseshoe parameterization (see below)
+2. Using simpler Laplace prior if full sparsity isn't required
+3. Increasing `target_accept` to 0.99 and allowing longer sampling
 
 ### Regularized (Finnish) Horseshoe
 
-Adds a finite "slab" width to prevent infinite estimates in cases of data separation (e.g., logistic regression).
+Adds a finite "slab" width to prevent infinite estimates in cases of data separation (e.g., logistic regression). Must be implemented manually:
 
 ```python
-import pymc_extras as pmx
+import pytensor.tensor as pt
 
-# Regularized horseshoe with slab
-beta = pmx.RegularizedHorseshoe(
-    "beta",
-    dims="features",
-    slab_scale=2.0,  # controls maximum coefficient magnitude
-    slab_df=4        # degrees of freedom for slab
-)
+# Regularized horseshoe (manual implementation)
+# D0 = expected number of non-zero coefficients, D = total features, N = observations
+tau = pm.HalfStudentT("tau", nu=2, sigma=D0 / (D - D0) * sigma / np.sqrt(N))
+lam = pm.HalfStudentT("lam", nu=5, dims="features")
+c2 = pm.InverseGamma("c2", alpha=1, beta=1)  # slab variance
+z = pm.Normal("z", 0, 1, dims="features")
+
+# Regularized shrinkage factor
+lam_tilde = pt.sqrt(c2 / (c2 + tau**2 * lam**2))
+beta = pm.Deterministic("beta", z * tau * lam * lam_tilde, dims="features")
 ```
 
 ### R2D2 Prior
 
-Induces a prior directly on R² (variance explained), often more interpretable.
+Induces a prior directly on R² (variance explained), often more interpretable. Available in pymc-extras.
 
 ```python
 import pymc_extras as pmx
 
-# Prior centered on 50% variance explained
-beta = pmx.R2D2M2CP(
-    "beta",
+# X must be centered; returns (residual_sigma, coefficients)
+# output_sigma and input_sigma are required
+output_sigma = y.std()
+input_sigma = X.std(axis=0)
+
+residual_sigma, beta = pmx.R2D2M2CP(
+    "r2d2",
+    output_sigma=output_sigma,
+    input_sigma=input_sigma,
     dims="features",
     r2=0.5,        # prior mean R²
-    r2_std=0.2     # uncertainty in R²
+    r2_std=0.2,    # uncertainty in R²
 )
 ```
 
@@ -537,8 +548,18 @@ c = pm.Normal("c", mu=343, sigma=5)  # m/s in air at 20°C
 # Use shrinkage priors for automatic relevance determination
 import pymc_extras as pmx
 
-# R2D2 prior with cross-validation of hyperparameters
-beta = pmx.R2D2M2CP("beta", dims="features", r2=0.5, r2_std=0.25)
+# R2D2 prior - requires output_sigma and input_sigma
+output_sigma = y.std()
+input_sigma = X.std(axis=0)
+
+residual_sigma, beta = pmx.R2D2M2CP(
+    "r2d2",
+    output_sigma=output_sigma,
+    input_sigma=input_sigma,
+    dims="features",
+    r2=0.5,
+    r2_std=0.25,
+)
 
 # Evaluate via LOO-CV
 trace = pm.sample()

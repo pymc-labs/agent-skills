@@ -39,6 +39,54 @@
 
 ---
 
+## Initialization and Common Failures
+
+### "Initial evaluation of model at starting point failed"
+
+This error occurs when the log-probability is `-inf` or `NaN` at initial parameter values.
+
+**Common causes and fixes**:
+
+| Cause | Fix |
+|-------|-----|
+| Data outside distribution support | Verify observed data matches likelihood bounds |
+| Jitter pushes parameters outside constraints | Use `init="adapt_diag"` (no jitter) |
+| Invalid default starting values | Specify `initvals={"param": value}` |
+| Constant response variable | Ensure target variable has variance |
+
+```python
+# Fix 1: Reduce/eliminate initialization jitter
+idata = pm.sample(init="adapt_diag")
+
+# Fix 2: Specify valid starting values
+idata = pm.sample(initvals={"sigma": 1.0, "beta": np.zeros(p)})
+
+# Fix 3: Use ADVI for more robust initialization
+idata = pm.sample(init="advi+adapt_diag")
+
+# Debugging: check which variables have invalid log-probabilities
+model.point_logps()
+model.debug()
+```
+
+### The MCMC Prior Sampling Fallacy
+
+**Common mistake**: Using `pm.sample()` to sample from the prior distribution.
+
+```python
+# BAD: pm.sample() uses MCMC even without observations
+with prior_model:
+    prior = pm.sample(draws=1000)  # slow, poor convergence for discrete vars
+
+# GOOD: Use ancestral sampling for priors
+with prior_model:
+    prior = pm.sample_prior_predictive(draws=1000)  # instant, exact
+```
+
+`pm.sample_prior_predictive()` performs ancestral sampling (drawing directly from distributions in dependency order), which is instant and avoids all MCMC convergence issues.
+
+---
+
 ## MCMC Samplers
 
 ### nutpie (Default)
