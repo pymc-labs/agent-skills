@@ -1,0 +1,83 @@
+{
+  "$schema": "../../schemas/skill-rules.schema.json",
+  "name": "pymc-modeling",
+  "version": "1.0.0",
+  "activation": {
+    "mode": "auto",
+    "priority": "high"
+  },
+  "promptTriggers": {
+    "keywords": [
+      "pymc",
+      "bayesian",
+      "bayes",
+      "mcmc",
+      "posterior",
+      "prior",
+      "hsgp",
+      "gp",
+      "gaussian process",
+      "hierarchical model",
+      "multilevel model",
+      "nutpie",
+      "arviz",
+      "inference",
+      "convergence",
+      "divergence",
+      "r-hat",
+      "ess",
+      "trace plot",
+      "loo-cv",
+      "waic",
+      "pymc-bart",
+      "bart",
+      "probabilistic",
+      "credible interval",
+      "hdi"
+    ],
+    "intentPatterns": [
+      "(create|build|implement|fit|train|specify).*?(bayesian|probabilistic|pymc|GP|gaussian process|hierarchical).*?(model|regression|analysis)",
+      "(sample|run|perform).*?(mcmc|posterior|inference|nuts)",
+      "(add|use|implement|set|choose|select).*?(prior|likelihood|distribution)",
+      "(check|diagnose|assess|evaluate).*?(convergence|divergence|r.?hat|ess|mixing)",
+      "(compare|select|evaluate).*?(model|loo|waic|elpd)",
+      "(seasonal|periodic|time.?series|trend).*?(pattern|model|GP|gaussian)",
+      "(causal|intervention|do.?operator|counterfactual)",
+      "(mixture|latent|hidden|cluster).*?(model|component)",
+      "(zero.?inflat|hurdle|censor|truncat).*?(model|data|regression)"
+    ]
+  },
+  "fileTriggers": {
+    "pathPatterns": [
+      "**/*pymc*.py",
+      "**/*bayesian*.py",
+      "**/models/*.py",
+      "**/*posterior*.py",
+      "**/*inference*.py"
+    ],
+    "contentPatterns": [
+      "import pymc",
+      "from pymc import",
+      "import arviz",
+      "pm\\.Model",
+      "pm\\.sample",
+      "pm\\.Normal",
+      "pm\\.HalfNormal",
+      "pm\\.gp\\.",
+      "HSGP",
+      "nuts_sampler",
+      "az\\.summary",
+      "az\\.plot_trace"
+    ]
+  },
+  "contextTriggers": {
+    "projectIndicators": [
+      "pymc",
+      "arviz",
+      "nutpie",
+      "pymc-bart",
+      "pymc-extras"
+    ],
+    "fileExtensions": [".py", ".ipynb"]
+  }
+}

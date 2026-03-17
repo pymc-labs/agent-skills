@@ -1,0 +1,53 @@
+{
+  "$schema": "../../schemas/skill-rules.schema.json",
+  "name": "marimo-notebooks",
+  "version": "1.0.0",
+  "activation": {
+    "mode": "auto",
+    "priority": "high"
+  },
+  "promptTriggers": {
+    "keywords": [
+      "marimo",
+      "reactive notebook",
+      "interactive notebook",
+      "@app.cell",
+      "mo.ui",
+      "mo.md",
+      "wigglystuff",
+      "mo.cache",
+      "mo.state"
+    ],
+    "intentPatterns": [
+      "(create|make|build|write|edit|modify).*?(notebook|marimo)",
+      "(convert|transform|migrate).*?(jupyter|ipynb).*?(marimo|py)",
+      "(add|create|insert).*?(cell|ui|slider|dropdown|widget)",
+      "(reactive|interactive).*?(notebook|analysis|dashboard)",
+      "(exploratory|eda|explore).*?(data|analysis).*?(notebook|interactive)",
+      "marimo\\s+(edit|run|new|convert|export)"
+    ]
+  },
+  "fileTriggers": {
+    "pathPatterns": [
+      "**/*.py"
+    ],
+    "contentPatterns": [
+      "import marimo",
+      "marimo\\.App",
+      "@app\\.cell",
+      "def _\\(",
+      "return \\([^)]+,\\)",
+      "mo\\.ui\\.",
+      "mo\\.md\\(",
+      "mo\\.hstack",
+      "mo\\.vstack"
+    ]
+  },
+  "contextTriggers": {
+    "projectIndicators": [
+      "marimo",
+      "wigglystuff"
+    ],
+    "fileExtensions": [".py"]
+  }
+}

@@ -39,7 +39,7 @@ Skills follow an [open standard](https://agentskills.io/specification) and work 
 
 ```bash
 # Clone the repository
-git clone https://github.com/fonnesbeck/agent-skills.git
+git clone https://github.com/pymc-labs/agent-skills.git
 cd agent-skills
 
 # Install to your platform(s)
@@ -153,6 +153,61 @@ rm -rf ~/.cursor/skills/pymc-modeling
 rm -rf ~/.copilot/skills/pymc-modeling
 ```
 
+## Hook-Based Skill Activation
+
+Skills now include **rules.json** files that define automatic activation triggers. This enables context-aware skill loading based on:
+
+- **Keywords** in user prompts (e.g., "bayesian", "marimo")
+- **Intent patterns** matching user requests (regex)
+- **File content** being edited (e.g., `import pymc`)
+- **File paths** matching patterns (e.g., `**/*pymc*.py`)
+
+### Using the Skill Evaluation Hook
+
+After installation, a hook script is available to evaluate prompts:
+
+```bash
+# Evaluate a prompt
+python ~/.claude/hooks/skill-eval.py "Create a Bayesian hierarchical model"
+
+# Output shows which skills should be activated:
+# SKILL_ACTIVATION_REQUIRED
+# The following skills should be activated for this task:
+# ### pymc-modeling
+# ...
+
+# Evaluate with file context
+python ~/.claude/hooks/skill-eval.py --file model.py "Improve this code"
+
+# Debug mode
+VERBOSE=1 python ~/.claude/hooks/skill-eval.py "fit a GP"
+```
+
+### rules.json Schema
+
+Each skill can define activation rules:
+
+```json
+{
+  "name": "pymc-modeling",
+  "version": "1.0.0",
+  "activation": {
+    "mode": "auto",
+    "priority": "high"
+  },
+  "promptTriggers": {
+    "keywords": ["pymc", "bayesian", "mcmc", "posterior"],
+    "intentPatterns": ["(create|build).*?(bayesian|probabilistic).*?(model)"]
+  },
+  "fileTriggers": {
+    "pathPatterns": ["**/*pymc*.py"],
+    "contentPatterns": ["import pymc", "pm\\.Model"]
+  }
+}
+```
+
+See [docs/HOOKS.md](docs/HOOKS.md) for complete documentation.
+
 ### Troubleshooting
 
 **Skill not loading:**
@@ -177,6 +232,7 @@ Each skill follows the [Agent Skills specification](https://agentskills.io/speci
 ```
 skill-name/
 ├── SKILL.md           # Main instructions (required)
+├── rules.json         # Activation rules (optional)
 ├── README.md          # User documentation
 └── references/        # Detailed reference documents
     ├── topic-a.md
@@ -187,14 +243,15 @@ See the [template/](template/) directory for a skill template.
 
 ## Contributing
 
-We welcome contributions! See [docs/contributing.md](docs/contributing.md) for guidelines.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 To add a new skill:
 
 1. Copy `template/` to `skills/your-skill-name/`
 2. Edit `SKILL.md` with your content
-3. Add a `README.md` for user documentation
-4. Submit a pull request
+3. Add `rules.json` with activation triggers
+4. Add a `README.md` for user documentation
+5. Submit a pull request
 
 ## References
 

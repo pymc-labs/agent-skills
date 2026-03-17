@@ -1,0 +1,33 @@
+{
+  "$schema": "../schemas/skill-rules.schema.json",
+  "name": "skill-name",
+  "version": "1.0.0",
+  "activation": {
+    "mode": "auto",
+    "priority": "medium"
+  },
+  "promptTriggers": {
+    "keywords": [
+      "keyword1",
+      "keyword2"
+    ],
+    "intentPatterns": [
+      "(create|build|make).*?(something).*?(pattern)"
+    ]
+  },
+  "fileTriggers": {
+    "pathPatterns": [
+      "**/*pattern*.py"
+    ],
+    "contentPatterns": [
+      "import something",
+      "from something import"
+    ]
+  },
+  "contextTriggers": {
+    "projectIndicators": [
+      "package-name"
+    ],
+    "fileExtensions": [".py"]
+  }
+}
